@@ -95,6 +95,20 @@ function draw(){
  document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const k=b.dataset.k;S[k]=b.dataset.v;if(k=='area'||k=='ch'||k=='m'){S.spg='';S.toko=''}if(k=='spg')S.toko='';draw()});
  document.getElementById('chs').onchange=e=>{S.ch=e.target.value;S.spg='';S.toko='';draw()};document.getElementById('rf').onclick=load;
  document.getElementById('th').onclick=()=>{const d=document.documentElement;d.dataset.theme=d.dataset.theme=='dark'?'':'dark'};
-}
+}const _draw=draw;
+draw=function(){
+ _draw();
+ const rows=document.querySelectorAll('.fb > .row');
+ if(rows.length<3)return;
+ const mk=(r,id,all)=>{
+  const o=[...r.querySelectorAll('button[data-k]')].map(b=>`<option value="${b.dataset.v}"${b.classList.contains('on')?' selected':''}>${b.dataset.v===''?all:b.dataset.v}</option>`).join('');
+  return `<select id="${id}">${o}</select>`;
+ };
+ const spg=mk(rows[1],'spgs','★ Semua SPG'),tok=mk(rows[2],'toks','Semua toko');
+ rows[1].innerHTML=`<span class="lb">SPG</span>${spg}<span class="lb" style="margin-left:8px">TOKO</span>${tok}`;
+ rows[2].remove();
+ document.getElementById('spgs').onchange=e=>{S.spg=e.target.value;S.toko='';draw()};
+ document.getElementById('toks').onchange=e=>{S.toko=e.target.value;draw()};
+};
 load();
 </script></body></html>
