@@ -98,15 +98,40 @@ function draw(){
 }const _draw=draw;
 draw=function(){
  _draw();
+ // CSS ringkas untuk HP (disuntik sekali)
+ if(!document.getElementById('mobfix')){
+  const st=document.createElement('style');st.id='mobfix';
+  st.textContent='.fb select{flex:1 1 140px;min-width:130px}@media(max-width:600px){.sc td,.sc th{padding:7px 5px;font-size:11px}.rin th:nth-child(7),.rin td:nth-child(7),.rin .mini{display:none}}';
+  document.head.appendChild(st);
+ }
+ // tabel rincian: tandai biar bisa diringkas di HP
+ document.querySelectorAll('.sc table').forEach(t=>{
+  if(t.rows[0]&&t.rows[0].querySelectorAll('th').length===8)t.classList.add('rin');
+ });
  const rows=document.querySelectorAll('.fb > .row');
  if(rows.length<3)return;
- const mk=(r,id,all)=>{
-  const o=[...r.querySelectorAll('button[data-k]')].map(b=>`<option value="${b.dataset.v}"${b.classList.contains('on')?' selected':''}>${b.dataset.v===''?all:b.dataset.v}</option>`).join('');
-  return `<select id="${id}">${o}</select>`;
+ const sel=(id,k,all,fmt)=>{
+  const bs=[...document.querySelectorAll('.fb button[data-k="'+k+'"]')];
+  return '<select id="'+id+'">'+bs.map(b=>{
+   const v=b.dataset.v;
+   const lb=v===''?all:(fmt?v.charAt(0)+v.slice(1).toLowerCase():v);
+   return '<option value="'+v+'"'+(b.classList.contains('on')?' selected':'')+'>'+lb+'</option>';
+  }).join('')+'</select>';
  };
- const spg=mk(rows[1],'spgs','★ Semua SPG'),tok=mk(rows[2],'toks','Semua toko');
- rows[1].innerHTML=`<span class="lb">SPG</span>${spg}<span class="lb" style="margin-left:8px">TOKO</span>${tok}`;
+ const area=sel('areas','area','Semua area',true);
+ const mrk=sel('mks','mk','Semua merek',false);
+ const spg=sel('spgs','spg','★ Semua SPG',false);
+ const tok=sel('toks','toks_k'.replace('toks_k','toko'),'Semua toko',false);
+ const chs=document.getElementById('chs');
+ // hapus grup AREA & MEREK dari baris atas (bulan & karton/value tetap)
+ const gs=rows[0].querySelectorAll(':scope > .grp');
+ if(gs.length>=4){gs[1].remove();gs[2].remove();}
+ // baris filter: Area | Channel | Merek | SPG | Toko
+ rows[1].innerHTML=area+'<span id="chslot"></span>'+mrk+spg+tok;
+ document.getElementById('chslot').replaceWith(chs);
  rows[2].remove();
+ document.getElementById('areas').onchange=e=>{S.area=e.target.value;S.spg='';S.toko='';draw()};
+ document.getElementById('mks').onchange=e=>{S.mk=e.target.value;draw()};
  document.getElementById('spgs').onchange=e=>{S.spg=e.target.value;S.toko='';draw()};
  document.getElementById('toks').onchange=e=>{S.toko=e.target.value;draw()};
 };
