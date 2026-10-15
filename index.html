@@ -135,5 +135,75 @@ draw=function(){
  document.getElementById('spgs').onchange=e=>{S.spg=e.target.value;S.toko='';draw()};
  document.getElementById('toks').onchange=e=>{S.toko=e.target.value;draw()};
 };
-load();
+/* ===== PATCH 52 WEEK (2026, pola 4-4-5) =====
+   CARA PASANG: copy SELURUH isi file ini, paste di file dashboard_team_cianjur.html
+   tepat SEBELUM baris:  load();
+   (baris itu ada di paling bawah, sebelum </script>). Selain itu tidak ada yang diubah. */
+(function(){
+ const ALLM=['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+ MON.splice(0,MON.length,...ALLM);
+ ALLM.forEach(m=>MS[m]=m.slice(0,3));
+ let YV='bln';
+ const sh=m=>m.charAt(0)+m.slice(1,3).toLowerCase();
+ const val=(r,k)=>S.u=='ctn'?r[k=='t'?'t':'a']:r[k=='t'?'tr':'ar'];
+ const fmt=v=>S.u=='ctn'?N1(v):CP(v);
+ const ax=v=>S.u=='ctn'?(v>=1000?(v/1000).toLocaleString('id-ID',{maximumFractionDigits:1})+'rb':Math.round(v)+''):(v>=1e9?(v/1e9).toLocaleString('id-ID',{maximumFractionDigits:1})+' M':v>=1e6?Math.round(v/1e6)+' jt':Math.round(v/1e3)+' rb');
+ function data(){
+  const rs=F(FEED),mo=ALLM.map(m=>{
+   const all=FEED.filter(r=>r.BULAN==m),rm=rs.filter(r=>r.BULAN==m);
+   const nW=uniq(all.map(r=>r.w)).length||1,nF=uniq(all.filter(r=>r.MINGGU_TERISI=='Ya').map(r=>r.w)).length;
+   const t=sum(rm,r=>val(r,'t')),a=sum(rm,r=>val(r,'a'));
+   return{m,t,a,nW,nF,ach:t>0?a/t:0,avT:t/nW,avA:nF?a/nF:null};
+  });
+  const wk=[];for(let i=1;i<=52;i++)wk.push({w:i,t:0,a:0,f:false,m:''});
+  rs.forEach(r=>{const n=parseInt(String(r.WEEK_KALENDER).replace(/\D/g,''));if(n>=1&&n<=52){wk[n-1].t+=val(r,'t');wk[n-1].a+=val(r,'a');wk[n-1].m=r.BULAN}});
+  FEED.forEach(r=>{const n=parseInt(String(r.WEEK_KALENDER).replace(/\D/g,''));if(n>=1&&n<=52&&r.MINGGU_TERISI=='Ya')wk[n-1].f=true});
+  return{mo,wk};
+ }
+ function bar(mo){
+  const W=640,H=270,l=46,r=8,t=34,b=30,gw=(W-l-r)/12,bw=gw*.32,mx=Math.max(1,...mo.map(x=>Math.max(x.t,x.a)))*1.08,y=v=>t+(H-t-b)*(1-v/mx);
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`;
+  for(let i=0;i<=4;i++){const v=mx*i/4;s+=`<line x1="${l}" x2="${W-r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ln)"/><text x="${l-6}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--mu)">${ax(v)}</text>`}
+  mo.forEach((x,i)=>{const cx=l+gw*i+gw/2;
+   s+=`<rect x="${cx-bw-1}" y="${y(x.t)}" width="${bw}" height="${H-b-y(x.t)}" rx="3" fill="#cfc6ff"/><rect x="${cx+1}" y="${y(x.a)}" width="${bw}" height="${H-b-y(x.a)}" rx="3" fill="var(--pr)"/>`;
+   if(x.t>0){const c=x.ach>=1?'var(--ok)':(x.nF?'var(--bad)':'var(--mu)');s+=`<text x="${cx}" y="${t-14}" text-anchor="middle" font-size="11" font-weight="800" fill="${c}">${P(x.ach)}</text>`}
+   s+=`<text x="${cx}" y="${H-12}" text-anchor="middle" font-size="10" fill="var(--mu)">${sh(x.m)}</text>`});
+  return s+'</svg>';
+ }
+ function line(pts,labels,tk){
+  const W=640,H=270,l=46,r=12,t=14,b=30,n=pts.length,mx=Math.max(1,...pts.map(p=>Math.max(p.t||0,p.a||0)))*1.1,x=i=>l+(W-l-r)*(n>1?i/(n-1):.5),y=v=>t+(H-t-b)*(1-v/mx);
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`;
+  for(let i=0;i<=4;i++){const v=mx*i/4;s+=`<line x1="${l}" x2="${W-r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--ln)"/><text x="${l-6}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--mu)">${ax(v)}</text>`}
+  const path=k=>{let d='',pen=false;pts.forEach((p,i)=>{if(p[k]==null){pen=false;return}d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(p[k]).toFixed(1)+' ';pen=true});return d};
+  s+=`<path d="${path('t')}" fill="none" stroke="#b9a8ff" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/><path d="${path('a')}" fill="none" stroke="var(--pr)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{if(p.a!=null)s+=`<circle cx="${x(i)}" cy="${y(p.a)}" r="${n>20?2.2:3.5}" fill="var(--pr)"/>`});
+  labels.forEach((lb,i)=>{if(lb)s+=`<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="10" fill="var(--mu)">${lb}</text>`});
+  return s+'</svg>';
+ }
+ function renderYear(){
+  const app=document.getElementById('app');if(!app)return;
+  let sec=document.getElementById('yr');
+  if(!sec){sec=document.createElement('div');sec.id='yr';const ref=app.querySelector('.g3');ref?ref.parentNode.insertBefore(sec,ref):app.appendChild(sec)}
+  const{mo,wk}=data(),T=sum(mo,x=>x.t),A=sum(mo,x=>x.a),fw=wk.filter(x=>x.f),lastW=fw.length?fw[fw.length-1].w:0,Tf=sum(fw,x=>x.t),Af=sum(fw,x=>x.a);
+  const box=(l,v,sub,c)=>`<div class="card"><div class="lb">${l}</div><div class="big ${S.u=='rp'?'rp':''}" style="margin-top:6px;${c?'color:'+c:''}">${v}</div><div class="mu s" style="margin-top:4px">${sub}</div></div>`;
+  const ach=T>0?A/T:0,achf=Tf>0?Af/Tf:0;
+  let pts,labels,cap;
+  if(YV=='bln'){pts=mo.map(x=>({t:x.avT,a:x.avA}));labels=mo.map(x=>sh(x.m));cap='rata-rata per week tiap bulan (bagi 4-4-5)'}
+  else{pts=wk.map(x=>({t:x.t,a:x.f?x.a:null}));labels=wk.map((x,i)=>(i==0||wk[i-1].m!=x.m)&&x.m?'W'+x.w:'');cap='total per week W1-W52'}
+  sec.innerHTML=`<h2>MONITORING SETAHUN 2026 · W1-W52 (4-4-5) ${S.spg?'· '+S.spg:''}${S.ch?' · '+S.ch:''}${S.area?' · '+title(S.area):''}</h2>
+  <div class="g3" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${box('TARGET 2026',fmt(T),S.u=='ctn'?'karton':'rupiah')}${box('AKTUAL S/D W'+(lastW||'-'),fmt(A),(fw.length)+' week terisi','var(--pr)')}${box('ACH SETAHUN',T?P(ach):'–','aktual : target setahun')}${box('ACH S/D W'+(lastW||'-'),Tf?P(achf):'–','aktual : target week terisi',achf>=1?'var(--ok)':'var(--bad)')}</div>
+  <div class="g2"><div class="card"><div class="t"><span>TARGET VS AKTUAL PER BULAN</span><span>${S.u=='ctn'?'karton':'rupiah'}</span></div>
+   <div class="mu s" style="margin:6px 0"><span style="color:#b9a8ff">■</span> Target &nbsp; <span style="color:var(--pr)">■</span> Aktual &nbsp; · angka atas = ACH bulan</div>${bar(mo)}</div>
+  <div class="card"><div class="t"><span>GARIS RATA-RATA</span><span><div class="grp" style="display:inline-flex"><button class="pill ${YV=='bln'?'on':''}" data-yv="bln">Avg / bulan</button><button class="pill ${YV=='wk'?'on':''}" data-yv="wk">Per week</button></div></span></div>
+   <div class="mu s" style="margin:6px 0"><span style="color:#b9a8ff">╌</span> Target &nbsp; <span style="color:var(--pr)">━</span> Aktual &nbsp; · ${cap}</div>${line(pts,labels)}</div></div>`;
+  sec.querySelectorAll('[data-yv]').forEach(b=>b.onclick=()=>{YV=b.dataset.yv;renderYear()});
+ }
+ const _d=draw;
+ draw=function(){
+  _d();renderYear();
+  const w=document.createTreeWalker(document.getElementById('app'),NodeFilter.SHOW_TEXT);let n;
+  while(n=w.nextNode())if(/time gone/i.test(n.nodeValue))n.nodeValue=n.nodeValue.replace(/time gone/gi,'pace week');
+ };
+})();
+ load();
 </script></body></html>
